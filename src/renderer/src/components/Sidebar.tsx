@@ -21,6 +21,8 @@ export function Sidebar({
   onPasteCoord,
   onClearPins,
   pinCount,
+  drawMode,
+  onToggleDraw,
   onCalibrate,
 }: {
   roomCode: string
@@ -31,6 +33,8 @@ export function Sidebar({
   onPasteCoord: (text: string) => void
   onClearPins: () => void
   pinCount: number
+  drawMode: boolean
+  onToggleDraw: () => void
   onCalibrate: () => void
 }) {
   const [coordText, setCoordText] = useState('')
@@ -72,6 +76,16 @@ export function Sidebar({
         </button>
         <button className="sb-mini" onClick={onClearPins} disabled={pinCount === 0}>
           Limpar marcadores{pinCount > 0 ? ` (${pinCount})` : ''}
+        </button>
+      </div>
+
+      <div className="sb-section">
+        <div className="sb-title">Comando</div>
+        <div className="sb-hint">
+          Botão direito no mapa abre o menu de marcações. Todos da sala veem.
+        </div>
+        <button className={drawMode ? 'sb-active' : ''} onClick={onToggleDraw}>
+          {drawMode ? '✏️ Parar de desenhar' : '✏️ Desenhar no mapa'}
         </button>
       </div>
 

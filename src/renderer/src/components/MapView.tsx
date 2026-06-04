@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type WheelEvent, type MouseEvent } from 'react'
-import type { Coordinate, Peer, LayerState } from '../types'
+import type { Coordinate, Peer, LayerState, Marker, Stroke } from '../types'
 import type { CalibPoint } from '../core/mapProjection'
 import { createProjection } from '../core/mapProjection'
 import { WORLD } from '../config/calibration'
+import { MARKER_BY_KIND } from '../config/markerKinds'
 import { PlayerMarker } from './PlayerMarker'
 import { MapGrid } from './MapGrid'
 import baseUrl from '../assets/gateway-map.png'
@@ -28,23 +29,32 @@ export function MapView({
   calibration,
   layers,
   manualPins,
+  markers,
+  myId,
+  strokes,
+  drawMode,
   myPos,
-  waypoints,
-  onAddWaypoint,
-  onRemoveWaypoint,
+  onOpenRadial,
+  onRemoveMarker,
+  onAddStroke,
 }: {
   peers: Peer[]
   calibration: CalibPoint[] | null
   layers: LayerState
   manualPins: Coordinate[]
+  markers: Marker[]
+  myId: string
+  strokes: Stroke[]
+  drawMode: boolean
   myPos: Coordinate | null
-  waypoints: Coordinate[]
-  onAddWaypoint: (c: Coordinate) => void
-  onRemoveWaypoint: (i: number) => void
+  onOpenRadial: (x: number, y: number, coord: Coordinate) => void
+  onRemoveMarker: (id: string) => void
+  onAddStroke: (s: Stroke) => void
 }) {
   const vpRef = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ zoom: 0.6, x: 0, y: 0 })
   const [size, setSize] = useState({ w: 0, h: 0 })
+  const [drawing, setDrawing] = useState<number[] | null>(null)
   const drag = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
 
   const proj = useMemo(
@@ -68,13 +78,17 @@ export function MapView({
     x: wx * view.zoom + view.x,
     y: wy * view.zoom + view.y,
   })
+  const toWorld = (sx: number, sy: number): [number, number] => [
+    (sx - view.x) / view.zoom,
+    (sy - view.y) / view.zoom,
+  ]
+  const localXY = (e: MouseEvent): [number, number] => {
+    const r = vpRef.current!.getBoundingClientRect()
+    return [e.clientX - r.left, e.clientY - r.top]
+  }
 
   const onWheel = (e: WheelEvent<HTMLDivElement>): void => {
-    const el = vpRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
+    const [mx, my] = localXY(e)
     setView((v) => {
       const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
       const zoom = Math.max(0.15, Math.min(10, v.zoom * factor))
@@ -83,42 +97,59 @@ export function MapView({
   }
   const onDown = (e: MouseEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return
-    drag.current = { mx: e.clientX, my: e.clientY, px: view.x, py: view.y }
+    if (drawMode) {
+      const [sx, sy] = localXY(e)
+      setDrawing(toWorld(sx, sy))
+    } else {
+      drag.current = { mx: e.clientX, my: e.clientY, px: view.x, py: view.y }
+    }
   }
   const onMove = (e: MouseEvent<HTMLDivElement>): void => {
+    if (drawing) {
+      const [sx, sy] = localXY(e)
+      const [wx, wy] = toWorld(sx, sy)
+      setDrawing((p) => (p ? [...p, wx, wy] : [wx, wy]))
+      return
+    }
     const d = drag.current
     if (!d) return
     setView((v) => ({ ...v, x: d.px + (e.clientX - d.mx), y: d.py + (e.clientY - d.my) }))
   }
   const onUp = (): void => {
     drag.current = null
+    if (drawing && drawing.length >= 4) {
+      onAddStroke({ id: crypto.randomUUID(), ownerId: myId, pts: drawing, t: Date.now() })
+    }
+    if (drawing) setDrawing(null)
   }
 
-  // botão direito: remove o waypoint clicado, ou adiciona um novo
   const onContext = (e: MouseEvent<HTMLDivElement>): void => {
     e.preventDefault()
     if (!proj) return
-    const el = vpRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const sx = e.clientX - rect.left
-    const sy = e.clientY - rect.top
-    for (let i = 0; i < waypoints.length; i++) {
-      const wp = proj.project(waypoints[i])
-      const s = toScreen(wp.x, wp.y)
-      if (Math.hypot(s.x - sx, s.y - sy) < 16) {
-        onRemoveWaypoint(i)
+    const [sx, sy] = localXY(e)
+    for (const m of markers) {
+      if (m.ownerId !== myId) continue
+      const s = toScreen(proj.project(m).x, proj.project(m).y)
+      if (Math.hypot(s.x - sx, s.y - sy) < 18) {
+        onRemoveMarker(m.id)
         return
       }
     }
-    onAddWaypoint(proj.unproject((sx - view.x) / view.zoom, (sy - view.y) / view.zoom))
+    const [wx, wy] = toWorld(sx, sy)
+    onOpenRadial(e.clientX, e.clientY, proj.unproject(wx, wy))
+  }
+
+  const projectStroke = (pts: number[]): string => {
+    let s = ''
+    for (let i = 0; i < pts.length; i += 2) s += `${pts[i] * view.zoom + view.x},${pts[i + 1] * view.zoom + view.y} `
+    return s.trim()
   }
 
   const meScreen = proj && myPos ? toScreen(proj.project(myPos).x, proj.project(myPos).y) : null
 
   return (
     <div
-      className="map-vp"
+      className={`map-vp${drawMode ? ' drawing' : ''}`}
       ref={vpRef}
       onWheel={onWheel}
       onMouseDown={onDown}
@@ -149,18 +180,21 @@ export function MapView({
         <MapGrid zoom={view.zoom} panX={view.x} panY={view.y} vw={size.w} vh={size.h} />
       )}
 
-      {/* linhas dos waypoints até você */}
-      {proj && meScreen && waypoints.length > 0 && (
-        <svg className="overlay-svg">
-          {waypoints.map((c, i) => {
-            const wp = proj.project(c)
-            const s = toScreen(wp.x, wp.y)
+      {/* desenhos compartilhados + linhas dos marcadores */}
+      <svg className="overlay-svg">
+        {strokes.map((s) => (
+          <polyline key={s.id} className="stroke" points={projectStroke(s.pts)} />
+        ))}
+        {drawing && <polyline className="stroke drawing-now" points={projectStroke(drawing)} />}
+        {proj &&
+          meScreen &&
+          markers.map((m) => {
+            const s = toScreen(proj.project(m).x, proj.project(m).y)
             return (
-              <line key={i} className="wp-line" x1={meScreen.x} y1={meScreen.y} x2={s.x} y2={s.y} />
+              <line key={`l${m.id}`} className="cm-line" x1={meScreen.x} y1={meScreen.y} x2={s.x} y2={s.y} />
             )
           })}
-        </svg>
-      )}
+      </svg>
 
       {proj &&
         peers.map((p) => {
@@ -179,17 +213,29 @@ export function MapView({
         })}
 
       {proj &&
-        waypoints.map((c, i) => {
-          const s = toScreen(proj.project(c).x, proj.project(c).y)
+        markers.map((m) => {
+          const s = toScreen(proj.project(m).x, proj.project(m).y)
+          const meta = MARKER_BY_KIND[m.kind]
           return (
-            <div key={`wp${i}`} className="waypoint" style={{ left: s.x, top: s.y }}>
-              <span className="wp-flag">⚑</span>
-              {myPos && <span className="wp-dist">{formatDist(myPos, c)}</span>}
+            <div
+              key={m.id}
+              className="cmd-marker"
+              style={{ left: s.x, top: s.y, borderColor: meta.color }}
+            >
+              <span className="cm-icon">{meta.icon}</span>
+              <span className="cm-info">
+                <b>{m.ownerName}</b>
+                {myPos && <span className="cm-dist">{formatDist(myPos, m)}</span>}
+              </span>
             </div>
           )
         })}
 
-      <div className="map-hint">scroll: zoom · arrastar: mover · botão direito: waypoint (clique nele p/ remover)</div>
+      <div className="map-hint">
+        {drawMode
+          ? '✏️ modo desenho: arraste para desenhar (todos veem)'
+          : 'scroll: zoom · arrastar: mover · botão direito: marcação'}
+      </div>
     </div>
   )
 }

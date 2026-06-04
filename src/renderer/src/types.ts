@@ -18,6 +18,24 @@ export interface Peer {
   updatedAt: number
 }
 
+export type MarkerKind = 'rally' | 'enemy' | 'danger' | 'food' | 'water' | 'look'
+
+export interface Marker {
+  id: string
+  kind: MarkerKind
+  lat: number
+  long: number
+  ownerId: string
+  ownerName: string
+}
+
+export interface Stroke {
+  id: string
+  ownerId: string
+  pts: number[] // [x0,y0,x1,y1,...] em coords do mundo (compacto p/ broadcast)
+  t: number // createdAt (ms)
+}
+
 export interface LayerState {
   grid: boolean
   radar: boolean

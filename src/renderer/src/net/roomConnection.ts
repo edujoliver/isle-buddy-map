@@ -1,45 +1,76 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
-import { presenceToPeers } from '../core/presenceToPeers'
-import type { Coordinate, Peer } from '../types'
+import { presenceToPeers, presenceToMarkers } from '../core/presenceToPeers'
+import type { Coordinate, Peer, Marker, Stroke } from '../types'
+
+interface PresenceState extends Peer {
+  markers: Marker[]
+}
 
 export interface RoomHandle {
   updatePosition(c: Coordinate): void
+  setMarkers(markers: Marker[]): void
+  sendStroke(stroke: Stroke): void
   leave(): void
+}
+
+export interface RoomCallbacks {
+  onPeers: (peers: Peer[]) => void
+  onMarkers: (markers: Marker[]) => void
+  onStroke: (stroke: Stroke) => void
 }
 
 export function joinRoom(
   roomCode: string,
   me: { id: string; name: string },
-  onPeers: (peers: Peer[]) => void,
+  cb: RoomCallbacks,
 ): RoomHandle {
   const channel: RealtimeChannel = supabase.channel(`room:${roomCode}`, {
-    config: { presence: { key: me.id } },
+    config: { presence: { key: me.id }, broadcast: { self: false } },
   })
 
-  let state: Peer = { id: me.id, name: me.name, lat: NaN, long: NaN, updatedAt: 0 }
+  let state: PresenceState = {
+    id: me.id,
+    name: me.name,
+    lat: NaN,
+    long: NaN,
+    updatedAt: 0,
+    markers: [],
+  }
   let subscribed = false
-  let pending: Peer | null = null
 
-  const emitPeers = (): void => onPeers(presenceToPeers(channel.presenceState()))
+  const emit = (): void => {
+    const ps = channel.presenceState()
+    cb.onPeers(presenceToPeers(ps))
+    cb.onMarkers(presenceToMarkers(ps))
+  }
+  const track = (): void => {
+    if (subscribed) channel.track(state)
+  }
 
   channel
-    .on('presence', { event: 'sync' }, emitPeers)
-    .on('presence', { event: 'join' }, emitPeers)
-    .on('presence', { event: 'leave' }, emitPeers)
+    .on('presence', { event: 'sync' }, emit)
+    .on('presence', { event: 'join' }, emit)
+    .on('presence', { event: 'leave' }, emit)
+    .on('broadcast', { event: 'stroke' }, ({ payload }) => cb.onStroke(payload as Stroke))
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         subscribed = true
-        await channel.track(pending ?? state)
-        pending = null
+        await channel.track(state) // usa o state mais recente (posição/markers já setados)
       }
     })
 
   return {
     updatePosition(c) {
       state = { ...state, ...c, updatedAt: Date.now() }
-      if (subscribed) channel.track(state)
-      else pending = state // re-aplicado quando subscrever (não perde a 1ª posição)
+      track()
+    },
+    setMarkers(markers) {
+      state = { ...state, markers }
+      track()
+    },
+    sendStroke(stroke) {
+      void channel.send({ type: 'broadcast', event: 'stroke', payload: stroke })
     },
     leave() {
       channel.untrack()

@@ -965,3 +965,128 @@ button:hover:not(:disabled)::after {
   stroke: rgba(0, 0, 0, 0.24);
   stroke-width: 0.5;
 }
+
+/* ============================================================
+   Marcações de comando (Squad) + desenho compartilhado (Dota)
+   ============================================================ */
+.map-vp.drawing {
+  cursor: crosshair;
+}
+.stroke {
+  fill: none;
+  stroke: #ffe9a6;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+.stroke.drawing-now {
+  stroke: #fff6cf;
+}
+.cm-line {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.cmd-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+  z-index: 5;
+  background: rgba(4, 10, 16, 0.82);
+  border: 1px solid;
+  padding: 2px 6px 2px 3px;
+  white-space: nowrap;
+}
+.cm-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.cm-info {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  line-height: 1.2;
+}
+.cm-info b {
+  color: #d6f0fb;
+  font-weight: normal;
+}
+.cm-dist {
+  color: var(--muted);
+}
+
+/* menu radial */
+.radial-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.radial {
+  position: fixed;
+  width: 0;
+  height: 0;
+  animation: fadeIn 0.12s ease both;
+}
+.radial-center {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: var(--glow);
+}
+.radial-item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 54px;
+  height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(6, 14, 20, 0.96);
+  border: 1.5px solid;
+  border-radius: 50%;
+  clip-path: none;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    background 0.1s ease;
+}
+.radial-item::after {
+  display: none;
+}
+.radial-item:hover {
+  transform: translate(-50%, -50%) scale(1.16);
+  background: rgba(20, 42, 56, 0.98);
+}
+.ri-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.ri-label {
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* sidebar extras */
+.sb-active {
+  background: var(--cyan-faint) !important;
+  color: var(--cyan-bright) !important;
+  box-shadow: var(--glow);
+}
+.sb-hint {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.45;
+}

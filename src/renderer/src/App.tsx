@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { JoinScreen } from './components/JoinScreen'
 import { MapView } from './components/MapView'
 import { CalibrationPanel } from './components/CalibrationPanel'
 import { BootSequence } from './components/BootSequence'
 import { Sidebar } from './components/Sidebar'
+import { RadialMenu } from './components/RadialMenu'
 import { parseCoordinate } from './core/coordinateParser'
 import { createPositionTracker } from './core/positionTracker'
 import { joinRoom, type RoomHandle } from './net/roomConnection'
 import { loadCalibration } from './config/calibration'
 import { sfx } from './fx/audio'
 import type { CalibPoint } from './core/mapProjection'
-import type { Coordinate, Peer, LayerState } from './types'
+import type { Coordinate, Peer, LayerState, Marker, MarkerKind, Stroke } from './types'
 
 const myId = crypto.randomUUID()
 const THROTTLE_MS = 1500
+const MAX_MARKERS = 5
+const STROKE_TTL = 12000
 
 const DEFAULT_LAYERS: LayerState = {
   grid: true,
@@ -30,6 +33,7 @@ export default function App() {
   const [booted, setBooted] = useState(false)
   const [joined, setJoined] = useState(false)
   const [roomCode, setRoomCode] = useState('')
+  const [myName, setMyName] = useState('')
   const [peers, setPeers] = useState<Peer[]>([])
   const [warn, setWarn] = useState(false)
   const [calibration, setCalibration] = useState<CalibPoint[] | null>(loadCalibration())
@@ -37,7 +41,11 @@ export default function App() {
   const [lastCoord, setLastCoord] = useState<Coordinate | null>(null)
   const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS)
   const [manualPins, setManualPins] = useState<Coordinate[]>([])
-  const [waypoints, setWaypoints] = useState<Coordinate[]>([])
+  const [myMarkers, setMyMarkers] = useState<Marker[]>([])
+  const [allMarkers, setAllMarkers] = useState<Marker[]>([])
+  const [strokes, setStrokes] = useState<Stroke[]>([])
+  const [drawMode, setDrawMode] = useState(false)
+  const [radial, setRadial] = useState<{ x: number; y: number; coord: Coordinate } | null>(null)
   const room = useRef<RoomHandle | null>(null)
   const tracker = useRef(createPositionTracker())
   const lastSent = useRef(0)
@@ -45,10 +53,16 @@ export default function App() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSig = useRef('')
 
-  // tick de 1s: re-renderiza pra atualizar "visto há Xs" e o esmaecer dos marcadores
+  // tick de 1s: atualiza "visto há Xs" e expira desenhos antigos
   const [, forceTick] = useState(0)
   useEffect(() => {
-    const id = setInterval(() => forceTick((t) => t + 1), 1000)
+    const id = setInterval(() => {
+      forceTick((t) => t + 1)
+      setStrokes((prev) => {
+        const f = prev.filter((s) => Date.now() - s.t < STROKE_TTL)
+        return f.length === prev.length ? prev : f
+      })
+    }, 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -80,9 +94,23 @@ export default function App() {
     }
   }, [peers])
 
+  // propaga minhas marcações para a sala (via presence)
+  useEffect(() => {
+    room.current?.setMarkers(myMarkers)
+  }, [myMarkers])
+
   const handleJoin = (name: string, code: string): void => {
-    room.current = joinRoom(code, { id: myId, name }, setPeers)
+    room.current = joinRoom(
+      code,
+      { id: myId, name },
+      {
+        onPeers: setPeers,
+        onMarkers: setAllMarkers,
+        onStroke: (s) => setStrokes((prev) => (prev.some((x) => x.id === s.id) ? prev : [...prev, s])),
+      },
+    )
     setRoomCode(code)
+    setMyName(name)
     sfx.connect()
     setJoined(true)
   }
@@ -93,6 +121,9 @@ export default function App() {
     tracker.current = createPositionTracker()
     setPeers([])
     setManualPins([])
+    setMyMarkers([])
+    setAllMarkers([])
+    setStrokes([])
     setJoined(false)
     sfx.click()
   }
@@ -108,6 +139,27 @@ export default function App() {
       setWarn(true)
       sfx.error()
     }
+  }
+
+  const addMarker = (kind: MarkerKind, coord: Coordinate): void => {
+    const m: Marker = {
+      id: crypto.randomUUID(),
+      kind,
+      lat: coord.lat,
+      long: coord.long,
+      ownerId: myId,
+      ownerName: myName,
+    }
+    setMyMarkers((prev) => [...prev, m].slice(-MAX_MARKERS)) // limite de 5 por player
+    sfx.click()
+  }
+  const removeMarker = (id: string): void => {
+    setMyMarkers((prev) => prev.filter((m) => m.id !== id))
+    sfx.click()
+  }
+  const addStroke = (s: Stroke): void => {
+    setStrokes((prev) => [...prev, s])
+    room.current?.sendStroke(s)
   }
 
   const send = (c: Coordinate): void => {
@@ -152,6 +204,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joined])
 
+  // marcações de todos: as dos outros (via presence) + as minhas (resposta imediata)
+  const displayMarkers = useMemo(
+    () => [...allMarkers.filter((m) => m.ownerId !== myId), ...myMarkers],
+    [allMarkers, myMarkers],
+  )
+
   if (!booted) return <BootSequence onDone={() => setBooted(true)} />
   if (!joined) return <JoinScreen onJoin={handleJoin} />
 
@@ -185,9 +243,12 @@ export default function App() {
           onPasteCoord={markCoord}
           onClearPins={() => {
             setManualPins([])
-            setWaypoints([])
+            setMyMarkers([])
+            setStrokes([])
           }}
-          pinCount={manualPins.length + waypoints.length}
+          pinCount={manualPins.length + myMarkers.length}
+          drawMode={drawMode}
+          onToggleDraw={() => setDrawMode((d) => !d)}
           onCalibrate={() => setCalibrating(true)}
         />
         <MapView
@@ -195,12 +256,27 @@ export default function App() {
           calibration={calibration}
           layers={layers}
           manualPins={manualPins}
+          markers={displayMarkers}
+          myId={myId}
+          strokes={strokes}
+          drawMode={drawMode}
           myPos={lastCoord}
-          waypoints={waypoints}
-          onAddWaypoint={(c) => setWaypoints((w) => [...w, c])}
-          onRemoveWaypoint={(i) => setWaypoints((w) => w.filter((_, idx) => idx !== i))}
+          onOpenRadial={(x, y, coord) => setRadial({ x, y, coord })}
+          onRemoveMarker={removeMarker}
+          onAddStroke={addStroke}
         />
       </div>
+      {radial && (
+        <RadialMenu
+          x={radial.x}
+          y={radial.y}
+          onSelect={(kind) => {
+            addMarker(kind, radial.coord)
+            setRadial(null)
+          }}
+          onClose={() => setRadial(null)}
+        />
+      )}
     </div>
   )
 }
