@@ -77,3 +77,53 @@ body {
   text-align: center;
   cursor: pointer;
 }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #2a2f3a;
+  font-size: 13px;
+}
+.topbar button,
+.calib-bar button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #44aa77;
+  color: #fff;
+  cursor: pointer;
+}
+.calib-bar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.calib-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 16px;
+  background: #2a2f3a;
+  font-size: 13px;
+}
+.calib-coord {
+  color: #ffd866;
+  font-weight: 600;
+}
+.calib-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffd866;
+  color: #000;
+  font-weight: bold;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #000;
+  pointer-events: none;
+}
