@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { startClipboardWatcher } from './clipboardWatcher'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -20,6 +21,14 @@ function createWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  // Vigia o clipboard e repassa ao renderer — este é o gatilho do tracking.
+  const stopWatcher = startClipboardWatcher((text) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('clipboard-text', text)
+    }
+  })
+  mainWindow.on('closed', () => stopWatcher())
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
