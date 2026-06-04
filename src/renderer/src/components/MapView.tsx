@@ -199,14 +199,14 @@ export function MapView({
             const s = toScreen(proj.project(m).x, proj.project(m).y)
             const meta = MARKER_BY_KIND[m.kind] ?? MARKER_KINDS[0]
             return (
-              <g key={m.id} transform={`translate(${s.x}, ${s.y})`}>
-                <circle className="cmd-bg" r={13} fill="rgba(4,10,16,0.9)" stroke={meta.color} strokeWidth={2.5} />
-                <circle r={4} fill={meta.color} />
-                <text className="cmd-emoji" x={0} y={0} textAnchor="middle" dominantBaseline="central">
+              <g key={m.id}>
+                <circle className="cmd-bg" cx={s.x} cy={s.y} r={13} fill="rgba(4,10,16,0.9)" stroke={meta.color} strokeWidth={2.5} />
+                <circle cx={s.x} cy={s.y} r={4} fill={meta.color} />
+                <text className="cmd-emoji" x={s.x} y={s.y} textAnchor="middle" dominantBaseline="central">
                   {meta.icon}
                 </text>
                 {myPos && (
-                  <text className="cmd-d" x={0} y={27} textAnchor="middle">
+                  <text className="cmd-d" x={s.x} y={s.y + 27} textAnchor="middle">
                     {formatDist(myPos, m)}
                   </text>
                 )}
