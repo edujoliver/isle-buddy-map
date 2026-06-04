@@ -12,6 +12,10 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      // O app vive em segundo plano enquanto o jogo está na frente: sem isto, o
+      // Chromium pausa timers/WebSocket em background (marcadores e "visto há Xs"
+      // congelam, posições dos amigos atrasam).
+      backgroundThrottling: false,
     },
   })
 

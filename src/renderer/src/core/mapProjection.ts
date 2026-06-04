@@ -10,6 +10,8 @@ export interface CalibPoint {
 
 export interface Projection {
   project(c: Coordinate): { x: number; y: number }
+  /** Inverso: pixel do mapa (world) -> coordenada do jogo. */
+  unproject(x: number, y: number): Coordinate
 }
 
 // Modelo afim por eixo (sem rotação): x = f(long), y = g(lat).
@@ -28,6 +30,10 @@ export function createProjection(points: CalibPoint[]): Projection {
     project: ({ lat, long }) => ({
       x: fx.slope * long + fx.intercept,
       y: fy.slope * lat + fy.intercept,
+    }),
+    unproject: (x, y) => ({
+      long: (x - fx.intercept) / fx.slope,
+      lat: (y - fy.intercept) / fy.slope,
     }),
   }
 }

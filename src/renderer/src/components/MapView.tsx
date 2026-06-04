@@ -18,16 +18,28 @@ interface View {
   y: number
 }
 
+// Distância entre duas coordenadas do jogo (assumindo unidades ~cm -> metros /100).
+function formatDist(a: Coordinate, b: Coordinate): string {
+  const d = Math.sqrt((a.long - b.long) ** 2 + (a.lat - b.lat) ** 2) / 100
+  return d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.round(d)} m`
+}
+
 export function MapView({
   peers,
   calibration,
   layers,
   manualPins,
+  myPos,
+  waypoint,
+  onSetWaypoint,
 }: {
   peers: Peer[]
   calibration: CalibPoint[] | null
   layers: LayerState
   manualPins: Coordinate[]
+  myPos: Coordinate | null
+  waypoint: Coordinate | null
+  onSetWaypoint: (c: Coordinate) => void
 }) {
   const vpRef = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ zoom: 0.6, x: 0, y: 0 })
@@ -60,6 +72,7 @@ export function MapView({
     })
   }
   const onDown = (e: MouseEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return
     drag.current = { mx: e.clientX, my: e.clientY, px: view.x, py: view.y }
   }
   const onMove = (e: MouseEvent<HTMLDivElement>): void => {
@@ -70,10 +83,26 @@ export function MapView({
   const onUp = (): void => {
     drag.current = null
   }
+
+  // botão direito -> waypoint na posição clicada
+  const onContext = (e: MouseEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    if (!proj) return
+    const el = vpRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const wx = (e.clientX - rect.left - view.x) / view.zoom
+    const wy = (e.clientY - rect.top - view.y) / view.zoom
+    onSetWaypoint(proj.unproject(wx, wy))
+  }
+
   const toScreen = (wx: number, wy: number): { x: number; y: number } => ({
     x: wx * view.zoom + view.x,
     y: wy * view.zoom + view.y,
   })
+
+  const wpScreen = proj && waypoint ? (() => { const p = proj.project(waypoint); return toScreen(p.x, p.y) })() : null
+  const meScreen = proj && myPos ? (() => { const p = proj.project(myPos); return toScreen(p.x, p.y) })() : null
 
   return (
     <div
@@ -84,6 +113,7 @@ export function MapView({
       onMouseMove={onMove}
       onMouseUp={onUp}
       onMouseLeave={onUp}
+      onContextMenu={onContext}
     >
       <div
         className="map-world"
@@ -103,6 +133,13 @@ export function MapView({
         {layers.grid && <MapGrid zoom={view.zoom} />}
       </div>
 
+      {/* linha do waypoint até você */}
+      {wpScreen && meScreen && (
+        <svg className="overlay-svg">
+          <line x1={meScreen.x} y1={meScreen.y} x2={wpScreen.x} y2={wpScreen.y} className="wp-line" />
+        </svg>
+      )}
+
       {proj &&
         peers.map((p) => {
           const wp = proj.project(p)
@@ -121,7 +158,14 @@ export function MapView({
           )
         })}
 
-      <div className="map-hint">scroll: zoom · arrastar: mover</div>
+      {wpScreen && (
+        <div className="waypoint" style={{ left: wpScreen.x, top: wpScreen.y }}>
+          <span className="wp-flag">⚑</span>
+          {myPos && waypoint && <span className="wp-dist">{formatDist(myPos, waypoint)}</span>}
+        </div>
+      )}
+
+      <div className="map-hint">scroll: zoom · arrastar: mover · botão direito: waypoint</div>
     </div>
   )
 }

@@ -37,12 +37,20 @@ export default function App() {
   const [lastCoord, setLastCoord] = useState<Coordinate | null>(null)
   const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS)
   const [manualPins, setManualPins] = useState<Coordinate[]>([])
+  const [waypoint, setWaypoint] = useState<Coordinate | null>(null)
   const room = useRef<RoomHandle | null>(null)
   const tracker = useRef(createPositionTracker())
   const lastSent = useRef(0)
   const pendingCoord = useRef<Coordinate | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSig = useRef('')
+
+  // tick de 1s: re-renderiza pra atualizar "visto há Xs" e o esmaecer dos marcadores
+  const [, forceTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => forceTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     let lastHover: Element | null = null
@@ -175,11 +183,22 @@ export default function App() {
           onToggleLayer={toggleLayer}
           onLeave={handleLeave}
           onPasteCoord={markCoord}
-          onClearPins={() => setManualPins([])}
-          pinCount={manualPins.length}
+          onClearPins={() => {
+            setManualPins([])
+            setWaypoint(null)
+          }}
+          pinCount={manualPins.length + (waypoint ? 1 : 0)}
           onCalibrate={() => setCalibrating(true)}
         />
-        <MapView peers={peers} calibration={calibration} layers={layers} manualPins={manualPins} />
+        <MapView
+          peers={peers}
+          calibration={calibration}
+          layers={layers}
+          manualPins={manualPins}
+          myPos={lastCoord}
+          waypoint={waypoint}
+          onSetWaypoint={setWaypoint}
+        />
       </div>
     </div>
   )
