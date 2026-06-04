@@ -12,18 +12,26 @@ export function JoinScreen({ onJoin }: { onJoin: (name: string, room: string) =>
   const [name, setName] = useState('')
   const [room, setRoom] = useState('')
   return (
-    <div className="join">
-      <h1>Isle Buddy Map</h1>
-      <input placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} />
-      <input
-        placeholder="Código da sala"
-        value={room}
-        onChange={(e) => setRoom(e.target.value.toUpperCase())}
-      />
-      <button onClick={() => setRoom(randomCode())}>Gerar código</button>
-      <button disabled={!name || !room} onClick={() => onJoin(name.trim(), room.trim())}>
-        Entrar
-      </button>
+    <div className="screen">
+      <div className="panel">
+        <div className="panel-header">⚠ ISLE BUDDY MAP</div>
+        <div className="panel-body">
+          <span className="field-label">Asset Name</span>
+          <input placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)} />
+          <span className="field-label">Room Code</span>
+          <input
+            placeholder="Código da sala"
+            value={room}
+            onChange={(e) => setRoom(e.target.value.toUpperCase())}
+          />
+          <div className="row">
+            <button onClick={() => setRoom(randomCode())}>Gerar</button>
+            <button disabled={!name || !room} onClick={() => onJoin(name.trim(), room.trim())}>
+              Entrar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -91,12 +91,15 @@ export default function App() {
   return (
     <>
       <div className="topbar">
-        <span>
-          {calibration
-            ? `✅ Mapa calibrado (${calibration.length} pontos)`
-            : '⚠️ Mapa não calibrado — os marcadores só aparecem após calibrar'}
+        <span className="brand">
+          ISLE BUDDY MAP<span className="sep">//</span>GATEWAY
         </span>
-        <button onClick={() => setCalibrating(true)}>Calibrar mapa</button>
+        <div className="topbar-right">
+          <span className={calibration ? 'status-ok' : 'status-warn'}>
+            {calibration ? `● CALIBRADO · ${calibration.length} PTS` : '▲ MAPA NÃO CALIBRADO'}
+          </span>
+          <button onClick={() => setCalibrating(true)}>Calibrar</button>
+        </div>
       </div>
       {warn && (
         <div className="warn" onClick={() => setWarn(false)}>
