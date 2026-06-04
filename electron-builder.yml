@@ -1,0 +1,18 @@
+appId: com.eduardo.islebuddymap
+productName: Isle Buddy Map
+directories:
+  output: dist
+files:
+  - out/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: IsleBuddyMap-Setup-${version}.${ext}
+  shortcutName: Isle Buddy Map
