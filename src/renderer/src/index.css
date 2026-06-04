@@ -989,35 +989,21 @@ button:hover:not(:disabled)::after {
   stroke-width: 1;
   stroke-dasharray: 4 4;
 }
-.cmd-marker {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  pointer-events: none;
-  z-index: 5;
-  background: rgba(4, 10, 16, 0.82);
-  border: 1px solid;
-  padding: 2px 6px 2px 3px;
-  white-space: nowrap;
+/* marcação de comando (renderizada em SVG dentro do overlay) */
+.cmd-bg {
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.8));
 }
-.cm-icon {
-  font-size: 16px;
-  line-height: 1;
+.cmd-emoji {
+  font-size: 15px;
 }
-.cm-info {
-  display: flex;
-  flex-direction: column;
-  font-size: 10px;
-  line-height: 1.2;
-}
-.cm-info b {
-  color: #d6f0fb;
-  font-weight: normal;
-}
-.cm-dist {
-  color: var(--muted);
+.cmd-d {
+  font-size: 11px;
+  font-weight: bold;
+  fill: #ffe9a6;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.85);
+  stroke-width: 3px;
+  font-family: 'Veteran Typewriter', monospace;
 }
 
 /* menu radial */

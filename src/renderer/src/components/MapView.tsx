@@ -3,7 +3,7 @@ import type { Coordinate, Peer, LayerState, Marker, Stroke } from '../types'
 import type { CalibPoint } from '../core/mapProjection'
 import { createProjection } from '../core/mapProjection'
 import { WORLD } from '../config/calibration'
-import { MARKER_BY_KIND } from '../config/markerKinds'
+import { MARKER_BY_KIND, MARKER_KINDS } from '../config/markerKinds'
 import { PlayerMarker } from './PlayerMarker'
 import { MapGrid } from './MapGrid'
 import baseUrl from '../assets/gateway-map.png'
@@ -180,7 +180,7 @@ export function MapView({
         <MapGrid zoom={view.zoom} panX={view.x} panY={view.y} vw={size.w} vh={size.h} />
       )}
 
-      {/* desenhos compartilhados + linhas dos marcadores */}
+      {/* desenhos + linhas + marcações de comando — tudo em SVG (renderiza sempre) */}
       <svg className="overlay-svg">
         {strokes.map((s) => (
           <polyline key={s.id} className="stroke" points={projectStroke(s.pts)} />
@@ -192,6 +192,25 @@ export function MapView({
             const s = toScreen(proj.project(m).x, proj.project(m).y)
             return (
               <line key={`l${m.id}`} className="cm-line" x1={meScreen.x} y1={meScreen.y} x2={s.x} y2={s.y} />
+            )
+          })}
+        {proj &&
+          markers.map((m) => {
+            const s = toScreen(proj.project(m).x, proj.project(m).y)
+            const meta = MARKER_BY_KIND[m.kind] ?? MARKER_KINDS[0]
+            return (
+              <g key={m.id} transform={`translate(${s.x}, ${s.y})`}>
+                <circle className="cmd-bg" r={13} fill="rgba(4,10,16,0.9)" stroke={meta.color} strokeWidth={2.5} />
+                <circle r={4} fill={meta.color} />
+                <text className="cmd-emoji" x={0} y={0} textAnchor="middle" dominantBaseline="central">
+                  {meta.icon}
+                </text>
+                {myPos && (
+                  <text className="cmd-d" x={0} y={27} textAnchor="middle">
+                    {formatDist(myPos, m)}
+                  </text>
+                )}
+              </g>
             )
           })}
       </svg>
@@ -208,22 +227,6 @@ export function MapView({
           return (
             <div key={`mp${i}`} className="manual-pin" style={{ left: s.x, top: s.y }}>
               ✕
-            </div>
-          )
-        })}
-
-      {proj &&
-        markers.map((m) => {
-          const s = toScreen(proj.project(m).x, proj.project(m).y)
-          const meta = MARKER_BY_KIND[m.kind]
-          return (
-            <div
-              key={m.id}
-              className="cmd-marker"
-              style={{ left: s.x, top: s.y, borderColor: meta.color }}
-            >
-              <span className="cm-icon">{meta.icon}</span>
-              {myPos && <span className="cm-dist">{formatDist(myPos, m)}</span>}
             </div>
           )
         })}
