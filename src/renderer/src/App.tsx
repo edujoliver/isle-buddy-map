@@ -3,25 +3,40 @@ import { JoinScreen } from './components/JoinScreen'
 import { MapView } from './components/MapView'
 import { CalibrationPanel } from './components/CalibrationPanel'
 import { BootSequence } from './components/BootSequence'
+import { Sidebar } from './components/Sidebar'
 import { parseCoordinate } from './core/coordinateParser'
 import { createPositionTracker } from './core/positionTracker'
 import { joinRoom, type RoomHandle } from './net/roomConnection'
 import { loadCalibration } from './config/calibration'
 import { sfx } from './fx/audio'
 import type { CalibPoint } from './core/mapProjection'
-import type { Coordinate, Peer } from './types'
+import type { Coordinate, Peer, LayerState } from './types'
 
 const myId = crypto.randomUUID()
 const THROTTLE_MS = 1500
 
+const DEFAULT_LAYERS: LayerState = {
+  grid: true,
+  radar: true,
+  water: true,
+  mud: true,
+  structures: true,
+  sanctuaries: false,
+  migration: false,
+  night: false,
+}
+
 export default function App() {
   const [booted, setBooted] = useState(false)
   const [joined, setJoined] = useState(false)
+  const [roomCode, setRoomCode] = useState('')
   const [peers, setPeers] = useState<Peer[]>([])
   const [warn, setWarn] = useState(false)
   const [calibration, setCalibration] = useState<CalibPoint[] | null>(loadCalibration())
   const [calibrating, setCalibrating] = useState(false)
   const [lastCoord, setLastCoord] = useState<Coordinate | null>(null)
+  const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS)
+  const [manualPins, setManualPins] = useState<Coordinate[]>([])
   const room = useRef<RoomHandle | null>(null)
   const tracker = useRef(createPositionTracker())
   const lastSent = useRef(0)
@@ -29,7 +44,6 @@ export default function App() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSig = useRef('')
 
-  // Sons de UI globais: hover/click em qualquer botão.
   useEffect(() => {
     let lastHover: Element | null = null
     const over = (e: Event): void => {
@@ -37,9 +51,7 @@ export default function App() {
       if (b && b !== lastHover) {
         lastHover = b
         sfx.hover()
-      } else if (!b) {
-        lastHover = null
-      }
+      } else if (!b) lastHover = null
     }
     const click = (e: Event): void => {
       if ((e.target as HTMLElement).closest?.('button')) sfx.click()
@@ -52,12 +64,8 @@ export default function App() {
     }
   }, [])
 
-  // Ping sonoro sempre que alguma posição muda na sala.
   useEffect(() => {
-    const sig = peers
-      .map((p) => `${p.id}:${p.updatedAt}`)
-      .sort()
-      .join('|')
+    const sig = peers.map((p) => `${p.id}:${p.updatedAt}`).sort().join('|')
     if (sig && sig !== lastSig.current) {
       lastSig.current = sig
       sfx.ping()
@@ -66,11 +74,34 @@ export default function App() {
 
   const handleJoin = (name: string, code: string): void => {
     room.current = joinRoom(code, { id: myId, name }, setPeers)
+    setRoomCode(code)
     sfx.connect()
     setJoined(true)
   }
 
-  // Throttle com trailing edge: não perde a posição final.
+  const handleLeave = (): void => {
+    room.current?.leave()
+    room.current = null
+    tracker.current = createPositionTracker()
+    setPeers([])
+    setManualPins([])
+    setJoined(false)
+    sfx.click()
+  }
+
+  const toggleLayer = (k: keyof LayerState): void => setLayers((l) => ({ ...l, [k]: !l[k] }))
+
+  const markCoord = (text: string): void => {
+    const r = parseCoordinate(text)
+    if (r.status === 'ok') {
+      setManualPins((p) => [...p, r.coord])
+      sfx.click()
+    } else {
+      setWarn(true)
+      sfx.error()
+    }
+  }
+
   const send = (c: Coordinate): void => {
     const since = Date.now() - lastSent.current
     if (since >= THROTTLE_MS) {
@@ -101,15 +132,14 @@ export default function App() {
         return
       }
       if (result.status === 'ok') {
-        setLastCoord(result.coord) // sempre disponível para a calibração
-        const out = tracker.current.consume(result) // dedupe para o envio
+        setLastCoord(result.coord)
+        const out = tracker.current.consume(result)
         if (out.emit) send(out.emit)
       }
     })
     return () => {
       off?.()
       if (timer.current) clearTimeout(timer.current)
-      room.current?.leave()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joined])
@@ -132,23 +162,23 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="topbar">
-        <span className="brand">
-          ISLE BUDDY MAP<span className="sep">//</span>GATEWAY
-        </span>
-        <div className="topbar-right">
-          <span className={calibration ? 'status-ok' : 'status-warn'}>
-            {calibration ? `● CALIBRADO · ${calibration.length} PTS` : '▲ MAPA NÃO CALIBRADO'}
-          </span>
-          <button onClick={() => setCalibrating(true)}>Calibrar</button>
-        </div>
-      </div>
       {warn && (
         <div className="warn" onClick={() => setWarn(false)}>
           Formato de coordenada não reconhecido — o jogo pode ter mudado. (clique pra fechar)
         </div>
       )}
-      <MapView peers={peers} calibration={calibration} />
+      <div className="app-body">
+        <Sidebar
+          roomCode={roomCode}
+          peers={peers}
+          layers={layers}
+          onToggleLayer={toggleLayer}
+          onLeave={handleLeave}
+          onPasteCoord={markCoord}
+          onCalibrate={() => setCalibrating(true)}
+        />
+        <MapView peers={peers} calibration={calibration} layers={layers} manualPins={manualPins} />
+      </div>
     </div>
   )
 }

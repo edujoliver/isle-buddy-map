@@ -17,3 +17,14 @@ export interface Peer {
   alt?: number
   updatedAt: number
 }
+
+export interface LayerState {
+  grid: boolean
+  radar: boolean
+  water: boolean
+  mud: boolean
+  structures: boolean
+  sanctuaries: boolean
+  migration: boolean
+  night: boolean
+}
