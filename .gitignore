@@ -3,5 +3,6 @@ dist
 out
 .env
 *.log
+*.tsbuildinfo
 .DS_Store
 tools/captured-coord.txt

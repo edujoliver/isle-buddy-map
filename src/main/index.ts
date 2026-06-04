@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { autoUpdater } from 'electron-updater'
 import { startClipboardWatcher } from './clipboardWatcher'
 
 function createWindow(): void {
@@ -43,6 +44,10 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   createWindow()
+  // auto-update via GitHub Releases (só no app instalado, não em dev)
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch((e) => console.error('update check:', e))
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

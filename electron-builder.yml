@@ -16,3 +16,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   artifactName: IsleBuddyMap-Setup-${version}.${ext}
   shortcutName: Isle Buddy Map
+publish:
+  provider: github
+  owner: edujoliver
+  repo: isle-buddy-map
