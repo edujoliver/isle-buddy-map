@@ -49,6 +49,7 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sb-brand">
         ISLE BUDDY MAP<span className="sep">//</span>GATEWAY
+        <span className="sb-ver">v{__APP_VERSION__}</span>
       </div>
 
       <div className="sb-section">

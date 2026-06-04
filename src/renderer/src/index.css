@@ -768,6 +768,13 @@ button:hover:not(:disabled)::after {
   color: var(--muted);
   margin: 0 6px;
 }
+.sb-ver {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
 .sb-section {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(58, 143, 181, 0.2);
