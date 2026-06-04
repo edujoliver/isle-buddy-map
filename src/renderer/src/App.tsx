@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { JoinScreen } from './components/JoinScreen'
 import { MapView } from './components/MapView'
 import { CalibrationPanel } from './components/CalibrationPanel'
+import { BootSequence } from './components/BootSequence'
 import { parseCoordinate } from './core/coordinateParser'
 import { createPositionTracker } from './core/positionTracker'
 import { joinRoom, type RoomHandle } from './net/roomConnection'
 import { loadCalibration } from './config/calibration'
+import { sfx } from './fx/audio'
 import type { CalibPoint } from './core/mapProjection'
 import type { Coordinate, Peer } from './types'
 
@@ -13,6 +15,7 @@ const myId = crypto.randomUUID()
 const THROTTLE_MS = 1500
 
 export default function App() {
+  const [booted, setBooted] = useState(false)
   const [joined, setJoined] = useState(false)
   const [peers, setPeers] = useState<Peer[]>([])
   const [warn, setWarn] = useState(false)
@@ -24,9 +27,46 @@ export default function App() {
   const lastSent = useRef(0)
   const pendingCoord = useRef<Coordinate | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSig = useRef('')
+
+  // Sons de UI globais: hover/click em qualquer botão.
+  useEffect(() => {
+    let lastHover: Element | null = null
+    const over = (e: Event): void => {
+      const b = (e.target as HTMLElement).closest?.('button') ?? null
+      if (b && b !== lastHover) {
+        lastHover = b
+        sfx.hover()
+      } else if (!b) {
+        lastHover = null
+      }
+    }
+    const click = (e: Event): void => {
+      if ((e.target as HTMLElement).closest?.('button')) sfx.click()
+    }
+    document.addEventListener('mouseover', over)
+    document.addEventListener('click', click)
+    return () => {
+      document.removeEventListener('mouseover', over)
+      document.removeEventListener('click', click)
+    }
+  }, [])
+
+  // Ping sonoro sempre que alguma posição muda na sala.
+  useEffect(() => {
+    const sig = peers
+      .map((p) => `${p.id}:${p.updatedAt}`)
+      .sort()
+      .join('|')
+    if (sig && sig !== lastSig.current) {
+      lastSig.current = sig
+      sfx.ping()
+    }
+  }, [peers])
 
   const handleJoin = (name: string, code: string): void => {
     room.current = joinRoom(code, { id: myId, name }, setPeers)
+    sfx.connect()
     setJoined(true)
   }
 
@@ -57,6 +97,7 @@ export default function App() {
       const result = parseCoordinate(text)
       if (result.status === 'malformed') {
         setWarn(true)
+        sfx.error()
         return
       }
       if (result.status === 'ok') {
@@ -73,6 +114,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joined])
 
+  if (!booted) return <BootSequence onDone={() => setBooted(true)} />
   if (!joined) return <JoinScreen onJoin={handleJoin} />
 
   if (calibrating) {

@@ -32,6 +32,7 @@ export function MapView({
         backgroundSize: 'contain',
       }}
     >
+      <div className="radar" />
       {proj
         ? peers.map((p) => {
             const { x, y } = proj.project(p)
