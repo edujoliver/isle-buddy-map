@@ -18,7 +18,6 @@ interface View {
   y: number
 }
 
-// Distância entre duas coordenadas do jogo (assumindo unidades ~cm -> metros /100).
 function formatDist(a: Coordinate, b: Coordinate): string {
   const d = Math.sqrt((a.long - b.long) ** 2 + (a.lat - b.lat) ** 2) / 100
   return d >= 1000 ? `${(d / 1000).toFixed(2)} km` : `${Math.round(d)} m`
@@ -30,19 +29,22 @@ export function MapView({
   layers,
   manualPins,
   myPos,
-  waypoint,
-  onSetWaypoint,
+  waypoints,
+  onAddWaypoint,
+  onRemoveWaypoint,
 }: {
   peers: Peer[]
   calibration: CalibPoint[] | null
   layers: LayerState
   manualPins: Coordinate[]
   myPos: Coordinate | null
-  waypoint: Coordinate | null
-  onSetWaypoint: (c: Coordinate) => void
+  waypoints: Coordinate[]
+  onAddWaypoint: (c: Coordinate) => void
+  onRemoveWaypoint: (i: number) => void
 }) {
   const vpRef = useRef<HTMLDivElement>(null)
   const [view, setView] = useState<View>({ zoom: 0.6, x: 0, y: 0 })
+  const [size, setSize] = useState({ w: 0, h: 0 })
   const drag = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
 
   const proj = useMemo(
@@ -53,11 +55,19 @@ export function MapView({
   useEffect(() => {
     const el = vpRef.current
     if (!el) return
-    const w = el.clientWidth
-    const h = el.clientHeight
-    const zoom = (Math.min(w, h) / WORLD) * 0.94
-    setView({ zoom, x: (w - WORLD * zoom) / 2, y: (h - WORLD * zoom) / 2 })
+    const update = (): void => setSize({ w: el.clientWidth, h: el.clientHeight })
+    update()
+    const zoom = (Math.min(el.clientWidth, el.clientHeight) / WORLD) * 0.94
+    setView({ zoom, x: (el.clientWidth - WORLD * zoom) / 2, y: (el.clientHeight - WORLD * zoom) / 2 })
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
+
+  const toScreen = (wx: number, wy: number): { x: number; y: number } => ({
+    x: wx * view.zoom + view.x,
+    y: wy * view.zoom + view.y,
+  })
 
   const onWheel = (e: WheelEvent<HTMLDivElement>): void => {
     const el = vpRef.current
@@ -84,25 +94,27 @@ export function MapView({
     drag.current = null
   }
 
-  // botão direito -> waypoint na posição clicada
+  // botão direito: remove o waypoint clicado, ou adiciona um novo
   const onContext = (e: MouseEvent<HTMLDivElement>): void => {
     e.preventDefault()
     if (!proj) return
     const el = vpRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const wx = (e.clientX - rect.left - view.x) / view.zoom
-    const wy = (e.clientY - rect.top - view.y) / view.zoom
-    onSetWaypoint(proj.unproject(wx, wy))
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
+    for (let i = 0; i < waypoints.length; i++) {
+      const wp = proj.project(waypoints[i])
+      const s = toScreen(wp.x, wp.y)
+      if (Math.hypot(s.x - sx, s.y - sy) < 16) {
+        onRemoveWaypoint(i)
+        return
+      }
+    }
+    onAddWaypoint(proj.unproject((sx - view.x) / view.zoom, (sy - view.y) / view.zoom))
   }
 
-  const toScreen = (wx: number, wy: number): { x: number; y: number } => ({
-    x: wx * view.zoom + view.x,
-    y: wy * view.zoom + view.y,
-  })
-
-  const wpScreen = proj && waypoint ? (() => { const p = proj.project(waypoint); return toScreen(p.x, p.y) })() : null
-  const meScreen = proj && myPos ? (() => { const p = proj.project(myPos); return toScreen(p.x, p.y) })() : null
+  const meScreen = proj && myPos ? toScreen(proj.project(myPos).x, proj.project(myPos).y) : null
 
   return (
     <div
@@ -129,28 +141,36 @@ export function MapView({
         {layers.sanctuaries && <img className="layer" src={sanctuariesUrl} alt="" />}
         {layers.migration && <img className="layer" src={migrationUrl} alt="" />}
         {layers.structures && <img className="layer" src={structuresUrl} alt="" />}
-        {layers.radar && <div className="radar" />}
-        {layers.grid && <MapGrid zoom={view.zoom} />}
       </div>
 
-      {/* linha do waypoint até você */}
-      {wpScreen && meScreen && (
+      {layers.radar && <div className="radar-overlay" />}
+      {layers.radar && <div className="scanline" />}
+      {layers.grid && size.w > 0 && (
+        <MapGrid zoom={view.zoom} panX={view.x} panY={view.y} vw={size.w} vh={size.h} />
+      )}
+
+      {/* linhas dos waypoints até você */}
+      {proj && meScreen && waypoints.length > 0 && (
         <svg className="overlay-svg">
-          <line x1={meScreen.x} y1={meScreen.y} x2={wpScreen.x} y2={wpScreen.y} className="wp-line" />
+          {waypoints.map((c, i) => {
+            const wp = proj.project(c)
+            const s = toScreen(wp.x, wp.y)
+            return (
+              <line key={i} className="wp-line" x1={meScreen.x} y1={meScreen.y} x2={s.x} y2={s.y} />
+            )
+          })}
         </svg>
       )}
 
       {proj &&
         peers.map((p) => {
-          const wp = proj.project(p)
-          const s = toScreen(wp.x, wp.y)
+          const s = toScreen(proj.project(p).x, proj.project(p).y)
           return <PlayerMarker key={p.id} peer={p} x={s.x} y={s.y} />
         })}
 
       {proj &&
         manualPins.map((c, i) => {
-          const wp = proj.project(c)
-          const s = toScreen(wp.x, wp.y)
+          const s = toScreen(proj.project(c).x, proj.project(c).y)
           return (
             <div key={`mp${i}`} className="manual-pin" style={{ left: s.x, top: s.y }}>
               ✕
@@ -158,14 +178,18 @@ export function MapView({
           )
         })}
 
-      {wpScreen && (
-        <div className="waypoint" style={{ left: wpScreen.x, top: wpScreen.y }}>
-          <span className="wp-flag">⚑</span>
-          {myPos && waypoint && <span className="wp-dist">{formatDist(myPos, waypoint)}</span>}
-        </div>
-      )}
+      {proj &&
+        waypoints.map((c, i) => {
+          const s = toScreen(proj.project(c).x, proj.project(c).y)
+          return (
+            <div key={`wp${i}`} className="waypoint" style={{ left: s.x, top: s.y }}>
+              <span className="wp-flag">⚑</span>
+              {myPos && <span className="wp-dist">{formatDist(myPos, c)}</span>}
+            </div>
+          )
+        })}
 
-      <div className="map-hint">scroll: zoom · arrastar: mover · botão direito: waypoint</div>
+      <div className="map-hint">scroll: zoom · arrastar: mover · botão direito: waypoint (clique nele p/ remover)</div>
     </div>
   )
 }

@@ -17,7 +17,7 @@ const THROTTLE_MS = 1500
 
 const DEFAULT_LAYERS: LayerState = {
   grid: true,
-  radar: true,
+  radar: false,
   water: true,
   mud: true,
   structures: true,
@@ -37,7 +37,7 @@ export default function App() {
   const [lastCoord, setLastCoord] = useState<Coordinate | null>(null)
   const [layers, setLayers] = useState<LayerState>(DEFAULT_LAYERS)
   const [manualPins, setManualPins] = useState<Coordinate[]>([])
-  const [waypoint, setWaypoint] = useState<Coordinate | null>(null)
+  const [waypoints, setWaypoints] = useState<Coordinate[]>([])
   const room = useRef<RoomHandle | null>(null)
   const tracker = useRef(createPositionTracker())
   const lastSent = useRef(0)
@@ -185,9 +185,9 @@ export default function App() {
           onPasteCoord={markCoord}
           onClearPins={() => {
             setManualPins([])
-            setWaypoint(null)
+            setWaypoints([])
           }}
-          pinCount={manualPins.length + (waypoint ? 1 : 0)}
+          pinCount={manualPins.length + waypoints.length}
           onCalibrate={() => setCalibrating(true)}
         />
         <MapView
@@ -196,8 +196,9 @@ export default function App() {
           layers={layers}
           manualPins={manualPins}
           myPos={lastCoord}
-          waypoint={waypoint}
-          onSetWaypoint={setWaypoint}
+          waypoints={waypoints}
+          onAddWaypoint={(c) => setWaypoints((w) => [...w, c])}
+          onRemoveWaypoint={(i) => setWaypoints((w) => w.filter((_, idx) => idx !== i))}
         />
       </div>
     </div>

@@ -447,18 +447,17 @@ input:focus {
   }
 }
 
-/* linha de varredura que percorre a tela toda */
-body::before {
-  content: '';
-  position: fixed;
+/* scanline do radar — só aparece quando o filtro "Radar" está ligado */
+.scanline {
+  position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  height: 160px;
+  height: 140px;
   pointer-events: none;
-  z-index: 9998;
-  background: linear-gradient(to bottom, transparent, rgba(69, 197, 240, 0.05), transparent);
-  animation: sweepDown 7s linear infinite;
+  z-index: 4;
+  background: linear-gradient(to bottom, transparent, rgba(69, 197, 240, 0.09), transparent);
+  animation: sweepDown 5s linear infinite;
 }
 
 /* entradas animadas */
@@ -583,14 +582,15 @@ body::before {
 }
 
 /* ---- Radar no mapa ---- */
-.radar {
+.radar-overlay {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   opacity: 0.75;
+  z-index: 2;
 }
-.radar::after {
+.radar-overlay::after {
   content: '';
   position: absolute;
   left: -50%;
@@ -600,7 +600,7 @@ body::before {
   background: conic-gradient(rgba(69, 197, 240, 0.22), transparent 25%, transparent 100%);
   animation: radarSpin 4.5s linear infinite;
 }
-.radar::before {
+.radar-overlay::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -699,10 +699,6 @@ button:hover:not(:disabled)::after {
   top: 0;
   left: 0;
   transform-origin: 0 0;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  box-shadow: inset 0 0 0 1px var(--cyan-border);
-  will-change: transform;
 }
 .map-grid {
   position: absolute;
@@ -953,41 +949,19 @@ button:hover:not(:disabled)::after {
 }
 
 /* grid tático hierárquico (Squad) — visível sobre mapa claro e escuro */
+.map-grid {
+  z-index: 3;
+}
 .map-grid .g-main {
-  stroke: rgba(40, 190, 245, 0.8);
-  stroke-width: 2;
-  vector-effect: non-scaling-stroke;
+  stroke: rgba(0, 0, 0, 0.62);
+  stroke-width: 1.2;
+  shape-rendering: crispEdges;
 }
 .map-grid .g-sub1 {
-  stroke: rgba(40, 190, 245, 0.5);
-  stroke-width: 1.3;
-  vector-effect: non-scaling-stroke;
+  stroke: rgba(0, 0, 0, 0.4);
+  stroke-width: 0.8;
 }
 .map-grid .g-sub2 {
-  stroke: rgba(40, 190, 245, 0.3);
-  stroke-width: 0.9;
-  vector-effect: non-scaling-stroke;
-}
-.map-grid .g-frame {
-  fill: none;
-  stroke: rgba(40, 190, 245, 0.95);
-  stroke-width: 2.5;
-  vector-effect: non-scaling-stroke;
-}
-.map-grid .g-label {
-  fill: #cdf3ff;
-  stroke: rgba(2, 10, 16, 0.9);
-  stroke-width: 5px;
-  paint-order: stroke;
-  font-size: 26px;
-  font-weight: bold;
-  font-family: 'Veteran Typewriter', monospace;
-}
-.map-grid .g-kp {
-  fill: #9fe6ff;
-  stroke: rgba(2, 10, 16, 0.85);
-  stroke-width: 2.5px;
-  paint-order: stroke;
-  font-size: 12px;
-  font-family: 'Veteran Typewriter', monospace;
+  stroke: rgba(0, 0, 0, 0.24);
+  stroke-width: 0.5;
 }
