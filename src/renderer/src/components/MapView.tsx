@@ -223,10 +223,7 @@ export function MapView({
               style={{ left: s.x, top: s.y, borderColor: meta.color }}
             >
               <span className="cm-icon">{meta.icon}</span>
-              <span className="cm-info">
-                <b>{m.ownerName}</b>
-                {myPos && <span className="cm-dist">{formatDist(myPos, m)}</span>}
-              </span>
+              {myPos && <span className="cm-dist">{formatDist(myPos, m)}</span>}
             </div>
           )
         })}
