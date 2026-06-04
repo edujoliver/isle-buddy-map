@@ -20,3 +20,4 @@ publish:
   provider: github
   owner: edujoliver
   repo: isle-buddy-map
+  releaseType: release
