@@ -1,6 +1,6 @@
 {
   "name": "isle-buddy-map",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Mapa ao vivo de amigos no The Isle (Evrima) via clipboard",
   "main": "./out/main/index.js",
   "author": "Eduardo",
