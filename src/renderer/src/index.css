@@ -648,3 +648,95 @@ button:hover:not(:disabled)::after {
     animation: none !important;
   }
 }
+
+/* ============================================================
+   Mapa com zoom / pan / grid tático
+   ============================================================ */
+.app-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.map-vp {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  background:
+    radial-gradient(120% 120% at 50% 50%, rgba(13, 40, 56, 0.25), transparent 70%),
+    #04080b;
+  animation: fadeIn 0.5s ease both;
+}
+.map-vp:active {
+  cursor: grabbing;
+}
+/* cantos de mira (HUD) sobre o viewport */
+.map-vp::before,
+.map-vp::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--cyan);
+  opacity: 0.85;
+  z-index: 6;
+  pointer-events: none;
+}
+.map-vp::before {
+  top: 10px;
+  left: 10px;
+  border-right: none;
+  border-bottom: none;
+}
+.map-vp::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: none;
+  border-top: none;
+}
+.map-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: inset 0 0 0 1px var(--cyan-border);
+  will-change: transform;
+}
+.map-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.map-grid .grid-lines line {
+  stroke: rgba(69, 197, 240, 0.16);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.map-grid .grid-frame {
+  fill: none;
+  stroke: rgba(69, 197, 240, 0.45);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.map-grid .grid-labels text {
+  fill: rgba(159, 230, 255, 0.6);
+  font-size: 22px;
+  font-family: 'Veteran Typewriter', monospace;
+}
+.map-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 6;
+  background: rgba(4, 10, 16, 0.6);
+  padding: 2px 10px;
+  border: 1px solid rgba(58, 143, 181, 0.3);
+}

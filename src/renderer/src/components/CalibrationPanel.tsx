@@ -1,8 +1,10 @@
 import { useState, type MouseEvent } from 'react'
 import type { Coordinate } from '../types'
 import type { CalibPoint } from '../core/mapProjection'
-import { MAP_SIZE, saveCalibration } from '../config/calibration'
+import { WORLD, saveCalibration } from '../config/calibration'
 import mapUrl from '../assets/gateway-map.png'
+
+const DISPLAY = 640 // tamanho fixo do mapa de calibração (sem zoom)
 
 export function CalibrationPanel({
   lastCoord,
@@ -18,8 +20,9 @@ export function CalibrationPanel({
   const handleClick = (e: MouseEvent<HTMLDivElement>): void => {
     if (!lastCoord) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    // converte o clique (display) para o espaço lógico do mapa [0, WORLD]
+    const x = ((e.clientX - rect.left) / rect.width) * WORLD
+    const y = ((e.clientY - rect.top) / rect.height) * WORLD
     setPoints([...points, { lat: lastCoord.lat, long: lastCoord.long, x, y }])
   }
 
@@ -51,16 +54,20 @@ export function CalibrationPanel({
       <div
         className="map calib-map"
         style={{
-          width: MAP_SIZE.w,
-          height: MAP_SIZE.h,
+          width: DISPLAY,
+          height: DISPLAY,
           backgroundImage: `url(${mapUrl})`,
-          backgroundSize: 'contain',
+          backgroundSize: '100% 100%',
           cursor: lastCoord ? 'crosshair' : 'not-allowed',
         }}
         onClick={handleClick}
       >
         {points.map((p, i) => (
-          <div key={i} className="calib-pin" style={{ left: p.x, top: p.y }}>
+          <div
+            key={i}
+            className="calib-pin"
+            style={{ left: (p.x / WORLD) * DISPLAY, top: (p.y / WORLD) * DISPLAY }}
+          >
             {i + 1}
           </div>
         ))}

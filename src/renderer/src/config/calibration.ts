@@ -1,13 +1,12 @@
 import type { CalibPoint } from '../core/mapProjection'
 
-// Tamanho de EXIBIÇÃO do mapa (a imagem 1400x1400 é escalada para isto via
-// background-size: contain). Cliques e marcadores vivem neste espaço 0..700.
-export const MAP_SIZE = { w: 700, h: 700 }
+// Espaço lógico do mapa (quadrado). Calibração e projeção vivem em [0, WORLD].
+// O MapView exibe esse espaço com zoom/pan; o CalibrationPanel exibe sem zoom.
+export const WORLD = 1000
 
 const STORAGE_KEY = 'ibm.calibration.gateway'
 
 // A calibração é feita pelo usuário (modo calibração) e persistida no localStorage.
-// Sem bounds públicos confiáveis, calibrar com pontos reais é a forma precisa.
 export function loadCalibration(): CalibPoint[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)

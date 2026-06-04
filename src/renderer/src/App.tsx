@@ -131,7 +131,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <div className="app-shell">
       <div className="topbar">
         <span className="brand">
           ISLE BUDDY MAP<span className="sep">//</span>GATEWAY
@@ -149,6 +149,6 @@ export default function App() {
         </div>
       )}
       <MapView peers={peers} calibration={calibration} />
-    </>
+    </div>
   )
 }
