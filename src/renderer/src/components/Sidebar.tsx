@@ -19,6 +19,8 @@ export function Sidebar({
   onToggleLayer,
   onLeave,
   onPasteCoord,
+  onClearPins,
+  pinCount,
   onCalibrate,
 }: {
   roomCode: string
@@ -27,6 +29,8 @@ export function Sidebar({
   onToggleLayer: (k: keyof LayerState) => void
   onLeave: () => void
   onPasteCoord: (text: string) => void
+  onClearPins: () => void
+  pinCount: number
   onCalibrate: () => void
 }) {
   const [coordText, setCoordText] = useState('')
@@ -65,6 +69,9 @@ export function Sidebar({
         />
         <button onClick={mark} disabled={!coordText.trim()}>
           Marcar no mapa
+        </button>
+        <button className="sb-mini" onClick={onClearPins} disabled={pinCount === 0}>
+          Limpar marcadores{pinCount > 0 ? ` (${pinCount})` : ''}
         </button>
       </div>
 

@@ -175,6 +175,8 @@ export default function App() {
           onToggleLayer={toggleLayer}
           onLeave={handleLeave}
           onPasteCoord={markCoord}
+          onClearPins={() => setManualPins([])}
+          pinCount={manualPins.length}
           onCalibrate={() => setCalibrating(true)}
         />
         <MapView peers={peers} calibration={calibration} layers={layers} manualPins={manualPins} />
